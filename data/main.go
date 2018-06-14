@@ -14,62 +14,61 @@ import (
 const sheetBaseURL string = "https://spreadsheets.google.com/feeds/list/%s/od6/public/values?alt=json"
 const colPrefix string = "gsx$"
 
-type googleSheetsText struct {
+// GoogleSheetsText is the content of a single Google Sheets cell
+type GoogleSheetsText struct {
 	Text string `json:"$t"`
 }
 
-type googleSheetsRow map[string]interface{}
+// GoogleSheetsRow represents a single row in a Google Sheet
+type GoogleSheetsRow map[string]interface{}
 
-type googleSheetsFeed struct {
-	ID      googleSheetsText  `json:"id"`
-	Updated googleSheetsText  `json:"updated"`
-	Entry   []googleSheetsRow `json:"entry"`
+// GoogleSheetsFeed is the structure of the data feed returned from Google Sheets
+type GoogleSheetsFeed struct {
+	ID      GoogleSheetsText  `json:"id"`
+	Updated GoogleSheetsText  `json:"updated"`
+	Entry   []GoogleSheetsRow `json:"entry"`
 }
 
-type googleSheetsResponse struct {
+// GoogleSheetsResponse is the structure of the data returned from Google Sheets
+type GoogleSheetsResponse struct {
 	Version  string `json:"version"`
 	Encoding string `json:"encoding"`
 	Title    struct {
 		Type string `json:"type"`
-		googleSheetsText
+		GoogleSheetsText
 	}
-	Feed googleSheetsFeed `json:"feed"`
+	Feed GoogleSheetsFeed `json:"feed"`
 }
 
-func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+// Handler responds to the lamba
+func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sheet := request.QueryStringParameters["sheet"]
 	response := events.APIGatewayProxyResponse{
 		Headers: map[string]string{
 			"Access-Control-Allow-Origin": "*",
 		},
 	}
-
 	if sheet == "" {
 		response.Body = "Required query parameter 'sheet' is missing"
 		response.StatusCode = 422
 
 		return response, nil
 	}
-
-	data, err := getSheetDataFromAPI(sheet)
-
+	data, err := GetSheetDataFromAPI(sheet)
 	if err != nil {
 		response.Body = "There was an error retrieving data from sheet"
 		response.StatusCode = 400
 
 		return response, nil
 	}
-
-	rows := mapRows(data.Feed.Entry)
+	rows := MapRows(data.Feed.Entry)
 	json, err := json.Marshal(rows)
-
 	if err != nil {
 		response.Body = "There was an error parsing data from sheet"
 		response.StatusCode = 400
 
 		return response, err
 	}
-
 	response.Body = string(json)
 	response.StatusCode = 200
 
@@ -77,24 +76,22 @@ func handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func main() {
-	lambda.Start(handler)
+	lambda.Start(Handler)
 }
 
-// Map all of the rows in the Google Sheet data
-func mapRows(rows []googleSheetsRow) []map[string]interface{} {
+// MapRows maps all of the rows in the Google Sheet data
+func MapRows(rows []GoogleSheetsRow) []map[string]interface{} {
 	var mappedRows []map[string]interface{}
-
 	for _, v := range rows {
-		mappedRows = append(mappedRows, mapRow(v))
+		mappedRows = append(mappedRows, MapRow(v))
 	}
 
 	return mappedRows
 }
 
-// Map a single Google Sheet row to an interface
-func mapRow(row googleSheetsRow) map[string]interface{} {
+// MapRow maps a single Google Sheet row to an interface with
+func MapRow(row GoogleSheetsRow) map[string]interface{} {
 	data := make(map[string]interface{})
-
 	for k, v := range row {
 		if strings.Contains(k, colPrefix) {
 			value := v.(map[string]interface{})["$t"]
@@ -109,24 +106,19 @@ func mapRow(row googleSheetsRow) map[string]interface{} {
 	return data
 }
 
-// Get the JSON data from a Google Sheet
-func getSheetDataFromAPI(sheetID string) (googleSheetsResponse, error) {
-	var data googleSheetsResponse
-
+// GetSheetDataFromAPI gets the JSON data from a Google Sheet
+func GetSheetDataFromAPI(sheetID string) (GoogleSheetsResponse, error) {
+	var data GoogleSheetsResponse
 	url := fmt.Sprintf(sheetBaseURL, sheetID)
 	response, err := http.Get(url)
-
 	if err != nil {
 		return data, err
 	}
-
 	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
-
 	if err != nil {
 		return data, err
 	}
-
 	err = json.Unmarshal(body, &data)
 
 	return data, err
