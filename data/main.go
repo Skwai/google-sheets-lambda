@@ -80,6 +80,7 @@ func main() {
 	lambda.Start(handler)
 }
 
+// Map all of the rows in the Google Sheet data
 func mapRows(rows []googleSheetsRow) []map[string]interface{} {
 	var mappedRows []map[string]interface{}
 
@@ -90,6 +91,7 @@ func mapRows(rows []googleSheetsRow) []map[string]interface{} {
 	return mappedRows
 }
 
+// Map a single Google Sheet row to an interface
 func mapRow(row googleSheetsRow) map[string]interface{} {
 	data := make(map[string]interface{})
 
@@ -107,6 +109,7 @@ func mapRow(row googleSheetsRow) map[string]interface{} {
 	return data
 }
 
+// Get the JSON data from a Google Sheet
 func getSheetDataFromAPI(sheetID string) (googleSheetsResponse, error) {
 	var data googleSheetsResponse
 
