@@ -40,6 +40,16 @@ type GoogleSheetsResponse struct {
 	Feed GoogleSheetsFeed `json:"feed"`
 }
 
+// SheetsErrorResponse is the structure of a sheets error response
+type SheetsErrorResponse struct {
+	Error SheetsError `json:"error"`
+}
+
+// SheetsError is the structure of a sheets error
+type SheetsError struct {
+	Message string `json:"message"`
+}
+
 // Handler responds to the lamba
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sheet := request.QueryStringParameters["sheet"]
@@ -49,27 +59,33 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 		},
 	}
 	if sheet == "" {
-		response.Body = "Required query parameter 'sheet' is missing"
+		e := SheetsErrorResponse{Error: SheetsError{Message: "Required query parameter 'sheet' is missing"}}
+		j, _ := json.Marshal(e)
+		response.Body = string(j)
 		response.StatusCode = 422
 
 		return response, nil
 	}
 	data, err := GetSheetDataFromAPI(sheet)
 	if err != nil {
-		response.Body = "There was an error retrieving data from sheet"
+		e := SheetsErrorResponse{Error: SheetsError{Message: "There was an error retrieving data from sheet"}}
+		j, _ := json.Marshal(e)
+		response.Body = string(j)
 		response.StatusCode = 400
 
 		return response, nil
 	}
 	rows := MapRows(data.Feed.Entry)
-	json, err := json.Marshal(rows)
+	j, err := json.Marshal(rows)
 	if err != nil {
-		response.Body = "There was an error parsing data from sheet"
+		e := SheetsErrorResponse{Error: SheetsError{Message: "There was an error parsing data from sheet"}}
+		j, _ := json.Marshal(e)
+		response.Body = string(j)
 		response.StatusCode = 400
 
 		return response, err
 	}
-	response.Body = string(json)
+	response.Body = string(j)
 	response.StatusCode = 200
 
 	return response, nil

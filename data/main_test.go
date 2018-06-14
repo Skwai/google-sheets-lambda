@@ -88,20 +88,35 @@ func TestMapRow(t *testing.T) {
 
 func TestHandler(t *testing.T) {
 	tests := []struct {
-		request events.APIGatewayProxyRequest
-		expect  string
-		err     error
+		request    events.APIGatewayProxyRequest
+		expect     string
+		statusCode int
+		err        error
 	}{
 		{
-			request: events.APIGatewayProxyRequest{QueryStringParameters: nil},
-			expect:  "Required query parameter 'sheet' is missing",
-			err:     nil,
+			request:    events.APIGatewayProxyRequest{QueryStringParameters: nil},
+			expect:     `{"error":{"message":"Required query parameter 'sheet' is missing"}}`,
+			statusCode: 422,
+			err:        nil,
+		},
+		{
+			request:    events.APIGatewayProxyRequest{QueryStringParameters: map[string]string{"sheet": "1234"}},
+			expect:     `{"error":{"message":"There was an error retrieving data from sheet"}}`,
+			statusCode: 400,
+			err:        nil,
+		},
+		{
+			request:    events.APIGatewayProxyRequest{QueryStringParameters: map[string]string{"sheet": "1MfmSdcF5Y-H-tEiaSIqTVwzHD8wXJvFPbEvrTFnznGE"}},
+			expect:     `[{"city":"Sydney","population":"5,131,326"},{"city":"Melbourne","population":"4,725,316"}]`,
+			statusCode: 200,
+			err:        nil,
 		},
 	}
 
 	for _, test := range tests {
 		response, err := Handler(test.request)
 		assert.IsType(t, test.err, err)
+		assert.Equal(t, test.statusCode, response.StatusCode)
 		assert.Equal(t, test.expect, response.Body)
 	}
 }
